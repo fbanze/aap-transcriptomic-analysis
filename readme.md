@@ -3,6 +3,8 @@
 ```
 Python 3.14.6
 scanpy
+datashader
+adjustText
 ```
 ## R Dependencies
 ```

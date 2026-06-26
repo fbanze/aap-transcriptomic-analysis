@@ -7,8 +7,8 @@ library(dplyr)
 
 ```{r paths, echo=FALSE}
 PROJECT_ROOT <- getwd()
-#OUTPUT_DIR <- file.path(PROJECT_ROOT, "datasets", "pseudobulk")
-#dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
+OUTPUT_DIR <- file.path(PROJECT_ROOT, "figures", "Data Analysis")
+dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
 ```
 
 ## Displaying the distribution of cells per donor as histogram
@@ -31,10 +31,9 @@ ggplot(colData, aes(x = n_cells)) +
   theme_minimal(base_size = 14)
 ```
 
-
+## Number of donors per sex and distribution of CD14+ monocytes
 ```{r pseudobulk analsis, echo=FALSE, fig.width=6, fig.height=6}
 
-colData <- colData %>% filter( smoking_status == 0)
 colData$sex <- factor(colData$sex, levels = c("male","female"), labels = c("Male","Female"))
 
 metadata_binned <- colData %>%
@@ -61,18 +60,9 @@ gg_bar_sex <- ggplot(metadata_binned, aes(x = sex, y = n, fill = sex)) +
     axis.title = element_text(face = "bold")
   )
 
-gg_bar_sex
-ggsave("./MA_Thesis/figures/AIDA/gg_bar_sex.png", plot = gg_bar_sex, width = 6, height = 8, dpi = 300)
+ggsave(file.path(OUTPUT_DIR, "gg_bar_sex.png"), plot = gg_bar_sex, width = 6, height = 8, dpi = 300)
 
-
-#colData$sex <- ifelse(colData$sex == 1, "female", "male")
-ggplot(colData, aes(x = sex, y = age, fill = sex)) +
-  geom_violin(alpha = 0.6) +
-  geom_boxplot(width=0.1, fill="white") +  # optionale Box im Violin
-  scale_fill_manual(values = c("Male"="#4DBBD5", "Female"="#E64B35")) +
-  labs(title="Altersverteilung nach Geschlecht", x="Geschlecht", y="Alter") +
-  theme_minimal()
-
+colData <- colData %>% filter(n_cells >= 20 & n_cells <= 1000)
 n_cells <- ggplot(colData, aes(x = sex, y = n_cells, fill = sex)) +
   geom_violin(alpha = 0.7, width = 0.8, color = NA) +
   geom_boxplot(width = 0.15, fill = "white", outlier.shape = NA) +
@@ -92,7 +82,5 @@ n_cells <- ggplot(colData, aes(x = sex, y = n_cells, fill = sex)) +
   )
 
 n_cells
-ggsave("./MA_Thesis/figures/AIDA/n_cells.png",n_cells, width = 6, height = 8, dpi = 300)
-
-ggsave("./MA_Thesis/figures/AIDA/gg_bar_sex.png", plot = gg_bar_sex, width = 6, height = 8, dpi = 300)legend.position = "top")
+ggsave(file.path(OUTPUT_DIR, "n_cells.png"), plot = n_cells, width = 6, height = 8, dpi = 300)
 ```
