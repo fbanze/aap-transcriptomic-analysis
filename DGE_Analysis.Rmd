@@ -1,0 +1,218 @@
+
+```{r libraries, echo=FALSE}
+library(BiocManager)
+library(biomaRt)
+library(edgeR)
+library(limma)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+```
+
+```{r paths, echo=FALSE}
+PROJECT_ROOT <- getwd()
+OUTPUT_DIR <- file.path(PROJECT_ROOT, "figures", "Data Analysis")
+dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
+```
+
+```{r aap genlist, echo=FALSE}
+options(scipen = 999)
+options(timeout = 300)
+#library(writexl)
+
+#get gene informations for AAP-related genes
+ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
+aap <- read.delim("AAP_genlist.txt", header = TRUE, stringsAsFactors = FALSE)
+aap_ensmbls <- getBM(
+  attributes = c("ensembl_gene_id", "uniprotswissprot"),
+  filters = "uniprotswissprot",
+  values = aap$UniProt.ID,
+  mart = ensembl
+)
+
+#aap_excel <- aap %>%left_join(aap_ensmbls,by = c("UniProt.ID" = "uniprotswissprot")) %>%rename(aap_ensembls = ensembl_gene_id)
+#write_xlsx(aap_excel,path = "AAP_genlist.xlsx")
+colnames(aap_ensmbls)[1] <- "ENSEMBL"
+```
+
+```{r limma, echo=FALSE}
+#DGE analysis with limma
+
+colData <- read.csv(file.path(PROJECT_ROOT, "datasets", "pseudobulk", "coldata_CD14-positive monocyte.csv"))
+colData <- colData %>% filter(n_cells >= 20 & smoking_status == 0 & n_cells <= 1000)
+colData$age <- as.numeric(substr(colData$age, 1, 2))
+
+#---------------------------------------statistics--------------------------------------------
+#used for population table after filtering
+colData %>% group_by(ethnicity) %>% summarise(median_value = median(age, na.rm = TRUE))
+median(colData$age)
+colData %>% group_by(ethnicity) %>% summarise(min = min(age, na.rm = TRUE))
+colData %>% group_by(ethnicity) %>% summarise(max = max(age, na.rm = TRUE))
+colData %>% group_by(ethnicity) %>% summarise(n = n(), .groups = "drop")
+n_females <- colData %>% group_by(ethnicity) %>% summarise(females = sum(sex == "female"), .groups = "drop")
+sum(n_females$females)
+sum(n_females$females)/length(colData$sex)
+colData %>% group_by(ethnicity) %>% summarise(females = round(sum(sex == "female")/n(), digits=3)*100, .groups = "drop")
+#---------------------------------------------------------------------------------
+
+counts <- read.csv(file.path(PROJECT_ROOT, "datasets", "pseudobulk", "CD14-positive monocyte.csv"))
+rownames(counts) <- counts[,1]
+counts <- counts[,-1]
+counts <- counts[,colData$donor_id]
+
+group <- as.factor(colData$sex)
+age <- as.numeric(substr(colData$age, 1, 2))
+batch <- colData$batch
+ethnicity <- as.factor(colData$ethnicity)
+country <- as.factor(colData$country)
+dge <- DGEList(counts = counts, group = group)
+colData <- colData %>% mutate(batch = sprintf("batch_%02d", as.integer(factor(batch))))
+design <- model.matrix(~ group + age + colData$country)
+
+#age bins
+bins <- c(17, 39, 64, Inf)
+labels_age <- c("young adults", "middle age", "older adults")
+colData$age <- cut(colData$age, breaks = bins, labels = labels_age,right = TRUE, nclude.lowest = TRUE)
+
+#saves metadata required for the supervised classification models  
+write.csv(colData, file.path(PROJECT_ROOT, "datasets", "colData.csv"))
+
+#get gene informations for all genes
+genes <- getBM(
+  attributes = c("ensembl_gene_id", "hgnc_symbol", "chromosome_name", "start_position", "end_position"),
+  filters = "ensembl_gene_id",
+  values = rownames(counts),
+  mart = ensembl
+)
+colnames(genes)[1] <- "ENSEMBL"
+colnames(genes)[2] <- "Symbols"
+#doppelte Einträge entfernen
+genes <- genes %>% group_by(ENSEMBL) %>% slice(1)
+
+# cutoff
+cpm_cutoff <- 0.5
+prop_samples <- 0.1
+min_samples <- ncol(counts) * prop_samples
+
+#Keep genes with CPM > 0.5 in at least 20% of samples
+keep <- rowSums(cpm(dge, log = FALSE, normalized.lib.sizes = TRUE) > cpm_cutoff) >= min_samples
+#keep <- filterByExpr(dge, design, min.count = 5, min.prop = 0.5)
+
+dge <- dge[keep, , keep.lib.sizes=FALSE]
+
+#supervised learning classification models dont use tmm normlization to prevent data leakage in cross-validation
+dge_spl <- dge
+
+# Normalisieren (TMM)
+dge <- calcNormFactors(dge)
+
+v <- voom(dge, design, plot = "False")
+v_spl <- voom(dge_spl, design, plot = "False")
+lcpm <- v_spl$E
+
+fit <- lmFit(v, design)
+fit <- eBayes(fit)
+dt <- decideTests(fit)
+
+#results
+res <- topTable(fit, coef = 2, number = Inf)
+res_age <- topTable(fit, coef = 3, number = Inf)
+res$ENSEMBL <- rownames(res)
+res_age$ENSEMBL <- rownames(res_age)
+join <- dplyr::inner_join(aap_ensmbls, res, by="ENSEMBL")
+join_age <- dplyr::inner_join(aap_ensmbls, res_age, by="ENSEMBL")
+symbols_aap <- (genes %>% filter(ENSEMBL %in% join$ENSEMBL))[,c(1,2)]
+symbols_aap <- (genes %>% filter(ENSEMBL %in% join_age$ENSEMBL))[,c(1,2)]
+join <- dplyr::inner_join(join, symbols_aap, by="ENSEMBL")
+join <- join %>% dplyr::select(Symbols, everything())
+join <- merge(join, genes[c("ENSEMBL", "chromosome_name")], by = 'ENSEMBL')
+join <- join %>% arrange(adj.P.Val)
+
+aap_counts <- counts[join$ENSEMBL, ]
+#write.csv(aap_counts, file="aap_counts.csv")
+
+join_age <- dplyr::inner_join(join_age, symbols_aap, by="ENSEMBL")
+join_age <- join_age %>% dplyr::select(Symbols, everything())
+join_age <- join_age %>% arrange(adj.P.Val)
+
+ptgs2_idx_female <- which(colData$sex == "female")
+ptgs2_idx_male <- which(colData$sex == "male")
+
+ptgs2_female <- lcpm['ENSG00000073756', ptgs2_idx_female]
+ptgs2_male <- lcpm['ENSG00000073756', ptgs2_idx_male]
+
+
+mean(ptgs2_female)
+mean(ptgs2_male)
+
+exp_mat_unscaled <- data.frame(lcpm[join$ENSEMBL,])
+tmp_symbols <- (genes %>% filter(ENSEMBL %in% rownames(exp_mat_unscaled)))[,c(1,2)]
+tmp_symbols <- tmp_symbols[order(match(tmp_symbols$ENSEMBL, rownames(exp_mat_unscaled))), ]
+rownames(exp_mat_unscaled) <- tmp_symbols$Symbols
+
+write.csv(exp_mat_unscaled, file= file.path(PROJECT_ROOT, "datasets", "exp_mat_unscaled.csv"))
+
+#volcano plot
+join$Significance <- rep("Not Sig", length(join$ENSEMBL))
+down <- join$logFC < 0 & join$adj.P.Val <= 0.1
+up <- join$logFC >= 0 & join$adj.P.Val <= 0.1
+join$Significance[down] <- "Down"
+join$Significance[up] <- "Up"
+join$label <- ifelse(-log10(join$adj.P.Val) >= 0.8, join$Symbols, "")
+join$Highlight <- ifelse(join$ENSEMBL == "ENSG00000073756", "Highlighted", "Normal")
+
+volcano <- ggplot(
+  join,
+  aes(x = logFC, y = -log10(adj.P.Val), color = Significance, text = Symbols)
+) +
+  geom_point(alpha = 0.6, size = 3) +
+  geom_point(
+    data = subset(join, Highlight == "Highlighted"),
+    aes(x = logFC, y = -log10(adj.P.Val)),
+    color = "red", size = 4, shape = 21, stroke = 1.2
+  ) +
+  geom_text_repel(
+    data = subset(join, Highlight == "Highlighted"),
+    aes(label = ifelse(label != "", Symbols, "")),
+    color = "red", size = 10, max.overlaps = 50, show.legend = FALSE
+  ) +
+  geom_text_repel(
+    data = subset(join, Highlight != "Highlighted"),
+    aes(label = ifelse(label != "", Symbols, "")),
+    size = 10, max.overlaps = 50, show.legend = FALSE
+  ) +
+  scale_color_manual(
+    values = c("Not Sig" = "gray", "Down" = "#377eb8", "Up" = "#ff7f00")
+  ) +
+  geom_hline(yintercept = -log10(0.1), linetype = "dashed") +
+  geom_vline(xintercept = c(-0.25, 0.25), linetype = "dotted") +
+  coord_cartesian(xlim = c(-0.5, 0.5)) +
+  scale_x_continuous(breaks = seq(-0.5, 0.5, by = 0.25)) +
+  annotate(
+    "text", x = -0.35, y = 0.3,
+    label = "Upregulated\nin females", size = 10
+  ) +
+  annotate(
+    "text", x = 0.35, y = 0.3,
+    label = "Upregulated\nin males", size = 10
+  ) +
+  labs(
+    x = "log2 fold change",
+    y = expression(-log[10]("adjusted p-value")),
+    color = "Significance"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    axis.title.y = element_text(size = 24),
+    axis.title.x = element_text(size = 24),
+    legend.title = element_text(size = 24),
+    legend.text = element_text(size = 24),
+    axis.text.x = element_text(size = 24),
+    axis.text.y = element_text(size = 24)
+  )
+ggsave(file.path(OUTPUT_DIR, "limma_volcano.png"), volcano, width=16, height=8, dpi = 300)
+print(volcano)
+
+join
+```

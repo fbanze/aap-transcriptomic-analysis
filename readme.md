@@ -11,4 +11,9 @@ adjustText
 R 4.5.0
 ggplot2
 dplyr
+BiocManager 3.21
+biomaRt
+edgeR
+limma
+ggrepel
 ```
