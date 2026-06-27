@@ -10,6 +10,7 @@ torch_geometric
 scikit-learn
 ipywidgets
 shap
+xgboost 3.2.0
 ```
 ## R Dependencies
 ```

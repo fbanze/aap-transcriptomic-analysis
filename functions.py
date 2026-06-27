@@ -18,11 +18,20 @@ from typing import Callable, Dict, Any, List
 from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 import matplotlib.pyplot as plt
 import seaborn as sns
+import random
 
 k = 10
 n = 9
 split_seed = 1905
 PROJECT_ROOT = Path.cwd()
+
+def set_seed(seed: int = 1905, deterministic_torch: bool = False):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 def sample_hyperparams(model_type: str, n: int, seed: int = 123, kernel ='linear') -> List[Dict[str, Any]]:
     """
@@ -184,15 +193,3 @@ class GeneExpressionDataset(Dataset):
         x = torch.tensor(x, dtype=torch.float32).unsqueeze(1)
         y = torch.tensor(self.labels.iloc[idx], dtype=torch.long)
         return Data(x=x, edge_index=self.edge_index, edge_weight=self.edge_weight, y=y)
-
-#whole dataset
-dataset = GeneExpressionDataset(
-    exp_matrix_path= PROJECT_ROOT / 'datasets/exp_mat_unscaled.csv',
-    conf_matrix_path= PROJECT_ROOT / 'datasets/adj_giant.csv',
-    threshold=0.1
-)
-
-y = np.array([data.y.item() for data in dataset])
-country = np.array(dataset.country)
-strat = np.array([f"{label}__{group}" for label, group in zip(y, country)])
-skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=split_seed)
