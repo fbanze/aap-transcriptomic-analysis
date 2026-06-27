@@ -1,10 +1,15 @@
-## Installation
+# Installation
 ## Python Dependencies
 ```
 Python 3.14.6
 scanpy
 datashader
 adjustText
+torch
+torch_geometric
+scikit-learn
+ipywidgets
+shap
 ```
 ## R Dependencies
 ```
@@ -16,4 +21,6 @@ biomaRt
 edgeR
 limma
 ggrepel
+stats
+stringr
 ```

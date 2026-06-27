@@ -216,3 +216,37 @@ print(volcano)
 
 join
 ```
+
+```{r build GIANT network}
+#builds the adjacency matrix for the GIANT network
+
+giant_network <- read.delim(file.path(PROJECT_ROOT, "monocyte_top.txt"), header = TRUE, stringsAsFactors = FALSE)
+entrez <- getBM(
+  attributes = c("ensembl_gene_id", "entrezgene_id", "hgnc_symbol"),
+  filters = "ensembl_gene_id",
+  values = join$ENSEMBL,
+  mart = ensembl
+)
+
+entrez = entrez[match(join$ENSEMBL, entrez$ensembl_gene_id), ]
+aap_network_giant <- giant_network %>% filter(X1 %in% entrez$entrezgene_id, X100008588 %in% entrez$entrezgene_id)
+aap_network_giant <- aap_network_giant %>% rename(entrez1 = X1,entrez2 = X100008588, post = X0.100005)
+aap_network_giant <- aap_network_giant %>% left_join(entrez %>% dplyr::select(entrezgene_id, hgnc_symbol) %>% 
+                     rename(entrez1 = entrezgene_id, node1 = hgnc_symbol),by = "entrez1") 
+aap_network_giant <- aap_network_giant %>% left_join(entrez %>% dplyr::select(entrezgene_id, hgnc_symbol) %>% 
+                     rename(entrez2 = entrezgene_id, node2 = hgnc_symbol),by = "entrez2") 
+aap_network_giant <- aap_network_giant %>% dplyr::select(node1, node2, post)
+
+adj_giant <- matrix(0, nrow = length(join$ENSEMBL), ncol = length(join$ENSEMBL))
+rownames(adj_giant) <- as.character(entrez$hgnc_symbol)
+colnames(adj_giant) <- rownames(adj_giant)
+
+for(i in 1:nrow(aap_network_giant)){
+  node1 <- as.character(aap_network_giant$node1[i])
+  node2 <- as.character(aap_network_giant$node2[i])
+  adj_giant[node1,node2] <- aap_network_giant$post[i]
+  adj_giant[node2,node1] <- aap_network_giant$post[i]
+}
+
+write.csv(adj_giant, file.path(PROJECT_ROOT, "datasets", "adj_giant.csv"))
+```
