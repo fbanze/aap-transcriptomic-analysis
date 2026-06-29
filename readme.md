@@ -37,12 +37,11 @@ shadowtext
 
 ## Datasets 
 ```
-- GIANT monocyte specific functional network top edges: https://hb.flatironinstitute.org/download
+- GIANT monocyte specific functional network top edges: <https://hb.flatironinstitute.org/download>
 
-- AAP curated list from PENTACON: https://pentaconhq.org/index.html@q=data.html
+- AAP curated list from PENTACON: <https://pentaconhq.org/index.html@q=data.html>
 
-- AIDA DataFreezeV2: https://cellxgene.cziscience.com/collections/ced320a1-29f3-47c1-a735-513c7084d508
-
+- AIDA DataFreezeV2: <https://cellxgene.cziscience.com/collections/ced320a1-29f3-47c1-a735-513c7084d508>
 ```
 
 ## Scripts
