@@ -42,14 +42,8 @@ metadata_binned <- colData %>%
 gg_bar_sex <- ggplot(metadata_binned, aes(x = sex, y = n, fill = sex)) +
   geom_col(width = 0.6, alpha = 0.9) +
   geom_text(aes(label = n), vjust = -0.4, size = 8) +
-  labs(
-    x = "",
-    y = "Number of individuals",
-    fill = "Sex"
-  ) +
-  scale_fill_manual(
-    values = c("Male" = "#4DBBD5", "Female" = "#E64B35")
-  ) +
+  labs(x = "",y = "Number of individuals",fill = "Sex") +
+  scale_fill_manual(values = c("Male" = "#4DBBD5", "Female" = "#E64B35")) +
   theme_classic(base_size = 14) +
   theme(
     axis.title.x = element_text(size = 24),
@@ -60,6 +54,7 @@ gg_bar_sex <- ggplot(metadata_binned, aes(x = sex, y = n, fill = sex)) +
     axis.title = element_text(face = "bold")
   )
 
+gg_bar_sex
 ggsave(file.path(OUTPUT_DIR, "gg_bar_sex.png"), plot = gg_bar_sex, width = 6, height = 8, dpi = 300)
 
 colData <- colData %>% filter(n_cells >= 20 & n_cells <= 1000)
@@ -67,10 +62,7 @@ n_cells <- ggplot(colData, aes(x = sex, y = n_cells, fill = sex)) +
   geom_violin(alpha = 0.7, width = 0.8, color = NA) +
   geom_boxplot(width = 0.15, fill = "white", outlier.shape = NA) +
   scale_fill_manual(values = c("Male" = "#4DBBD5", "Female" = "#E64B35")) +
-  labs(
-    x = "",
-    y = "Number of CD14+ monocyte cells"
-  ) +
+  labs(x = "",y = "Number of CD14+ monocyte cells") +
   theme_classic(base_size = 14) +
   theme(
     axis.title.x = element_text(size = 24),

@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r libraries, echo=FALSE}
+library(writexl)
 library(readxl)
 library(dplyr)
 library(ggplot2)
@@ -38,7 +39,7 @@ summary_table <- summary_table %>% inner_join(rf_imp, by = "Symbols")
 summary_table <- summary_table %>% inner_join(linearsvm_imp, by = "Symbols")
 summary_table <- summary_table %>% inner_join(mlagnn_imp, by = "Symbols")
 
-write_xlsx(path = file.path(IMP_DIR,"AAP_Summary_List.xlsx"), summary_table)
+write_xlsx(path = file.path(IMP_DIR, "AAP_Summary_List.xlsx"), summary_table)
 ```
 
 ```{r heatmap, echo=FALSE}
@@ -48,11 +49,7 @@ importance_cols <- c("XGBoostImp", "RFImp", "LinearSVMImp", "MLAGNNImp")
 
 importance_rank <- df %>%
   select(Symbols, adj.P.Val, all_of(importance_cols)) %>%
-  pivot_longer(
-    cols = all_of(importance_cols),
-    names_to = "Model",
-    values_to = "Importance"
-  ) %>%
+  pivot_longer(cols = all_of(importance_cols),names_to = "Model",values_to = "Importance") %>%
   group_by(Model) %>%
   mutate(Rank = min_rank(desc(Importance))) %>%ungroup()
 
@@ -67,10 +64,8 @@ top_features_rank <- importance_rank %>%
 plot_data <- importance_rank %>%
   semi_join(top_features_rank, by = c("Symbols", "adj.P.Val")) %>%
   left_join(top_features_rank, by = c("Symbols", "adj.P.Val")) %>%
-  mutate(
-    Symbols = fct_reorder(Symbols, mean_rank, .desc = TRUE),
-    Model = factor(Model, levels = importance_cols)
-  )
+  mutate(Symbols = fct_reorder(Symbols, mean_rank, .desc = TRUE),Model = factor(Model, levels = importance_cols)
+         )
 
 p_heatmap <- ggplot(plot_data, aes(x = Model, y = Symbols, fill = Rank)) +
   geom_tile(color = "white") +
@@ -81,9 +76,7 @@ p_heatmap <- ggplot(plot_data, aes(x = Model, y = Symbols, fill = Rank)) +
     bg.colour = "white",
     bg.r = 0.12
   ) +
-  scale_fill_viridis_c(
-    option = "C",
-    direction = -1) +
+  scale_fill_viridis_c(option = "C",direction = -1) +
   labs(
     title = "Feature-Importance Ranking across Classification Models",
     subtitle = "All 103 genes by mean rank",
@@ -115,17 +108,8 @@ p_adj <- top_features_rank %>%
     p_value_group = ifelse(adj.P.Val < 0.1, "p < 0.1", "p >= 0.1")
   ) %>%
   ggplot(aes(x = "Adj.P.val", y = Symbols)) +
-  geom_text(
-    aes(label = adj_p_label, color = p_value_group),
-    size = 6,
-    hjust = 0.5,
-    vjust = 0.5) +
-  scale_color_manual(
-    values = c(
-      "p < 0.1" = "red",
-      "p >= 0.1" = "black"
-    ),
-    guide = "none") +
+  geom_text(aes(label = adj_p_label, color = p_value_group),size = 6,hjust = 0.5,vjust = 0.5) +
+  scale_color_manual(values = c("p < 0.1" = "red","p >= 0.1" = "black"),guide = "none") +
   scale_x_discrete(position = "top") +
   labs(x = NULL, y = NULL) +
   theme_void(base_size = 16) +
@@ -137,12 +121,6 @@ p_adj <- top_features_rank %>%
 
 final_plot <- p_heatmap + p_adj + plot_layout(widths = c(4, 1))
 
-ggsave(
-  filename = file.path(OUTPUT_DIR,"feature_importance_rank_heatmap.pdf"),
-  plot = final_plot,
-  width = 12,
-  height = 28,
-  units = "in",
-  device = cairo_pdf
-)
+ggsave(filename = file.path(OUTPUT_DIR,"feature_importance_rank_heatmap.pdf"),plot = final_plot,
+  width = 12,height = 28,units = "in",device = cairo_pdf)
 ```

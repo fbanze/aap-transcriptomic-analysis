@@ -56,6 +56,6 @@ shadowtext
 8. GAT.ipynb (Graph classification with graph attention)
 9. RandomClassifier.ipynb (Random classification models used as baselines models)
 10. functions.py (Python script with helper functions for supervised classification)
-11. removeBatchEffect.R (Modified Version from the R package voom to remove Batch effects during CV)
+11. removeBatchEffect.R (Modified Version from the R package limma to remove Batch effects during CV)
 12. ImportanceHeatmap.Rmd (Ranked Heatmap of Feature Importance values)
 ```
