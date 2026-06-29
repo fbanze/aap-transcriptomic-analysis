@@ -55,4 +55,6 @@ shadowtext
 7. XGBoost.ipynb (EXtreme Gradient Boosting classification)
 8. GAT.ipynb (Graph classification with graph attention)
 9. functions.py (Python script with helper functions for supervised classification)
+10. removeBatchEffect.R (Modified Version from the R package voom to remove Batch effects during CV)
+11. ImportanceHeatmap.Rmd (Ranked Heatmap of Feature Importance values)
 ```
