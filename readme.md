@@ -54,7 +54,8 @@ shadowtext
 6. RF.ipynb (Random Forest classification)
 7. XGBoost.ipynb (EXtreme Gradient Boosting classification)
 8. GAT.ipynb (Graph classification with graph attention)
-9. functions.py (Python script with helper functions for supervised classification)
-10. removeBatchEffect.R (Modified Version from the R package voom to remove Batch effects during CV)
-11. ImportanceHeatmap.Rmd (Ranked Heatmap of Feature Importance values)
+9. RandomClassifier.ipynb (Random classification models used as baselines models)
+10. functions.py (Python script with helper functions for supervised classification)
+11. removeBatchEffect.R (Modified Version from the R package voom to remove Batch effects during CV)
+12. ImportanceHeatmap.Rmd (Ranked Heatmap of Feature Importance values)
 ```
