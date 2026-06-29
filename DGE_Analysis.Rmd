@@ -7,6 +7,7 @@ library(limma)
 library(dplyr)
 library(ggplot2)
 library(ggrepel)
+library(writexl)
 ```
 
 ```{r paths, echo=FALSE}
@@ -229,6 +230,7 @@ volcano <- ggplot(
 ggsave(file.path(OUTPUT_DIR, "limma_volcano.png"), volcano, width=16, height=8, dpi = 300)
 print(volcano)
 
+write_xlsx(path = file.path(PROJECT_ROOT, "datasets" , "FeatureImp", "AAP_List.xlsx"), join[,-c((ncol(join)-1):ncol(join))])
 join
 ```
 
@@ -263,5 +265,5 @@ for(i in 1:nrow(aap_network_giant)){
   adj_giant[node2,node1] <- aap_network_giant$post[i]
 }
 
-write.csv(adj_giant, file.path(PROJECT_ROOT, "datasets", "adj_giant.csv"))
+#write.csv(adj_giant, file.path(PROJECT_ROOT, "datasets", "adj_giant.csv"))
 ```

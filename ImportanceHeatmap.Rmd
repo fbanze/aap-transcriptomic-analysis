@@ -1,0 +1,147 @@
+---
+title: "ImprtanceHeatmap"
+output: html_document
+date: "2026-06-29"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, echo=FALSE}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(forcats)
+library(patchwork)
+library(tidyr)
+library(scales)
+```
+
+```{r paths, echo=FALSE}
+PROJECT_ROOT <- getwd()
+OUTPUT_DIR <- file.path(PROJECT_ROOT, "figures")
+IMP_DIR <- file.path(PROJECT_ROOT, "datasets", "FeatureImp")
+dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
+```
+
+```{r importance merge, echo=FALSE}
+
+summary_table <- read_excel(file.path(IMP_DIR, "AAP_List.xlsx"))
+xgboost_imp <- read.csv(file.path(IMP_DIR, "xgboostimp.csv", sep = ";"))
+linearsvm_imp <- read.csv(file.path(IMP_DIR,"linearsvmimp.csv", sep = ";"))
+rf_imp <- read.csv(file.path(IMP_DIR,"rfimp.csv", sep = ";"))
+mlagnn_imp <- read.csv(file.path(IMP_DIR,"mlagnnimp.csv", sep = ";"))
+summary_table <- summary_table %>% inner_join(xgboost_imp, by = "Symbols")
+summary_table <- summary_table %>% inner_join(rf_imp, by = "Symbols")
+summary_table <- summary_table %>% inner_join(linearsvm_imp, by = "Symbols")
+summary_table <- summary_table %>% inner_join(mlagnn_imp, by = "Symbols")
+
+write_xlsx(path = file.path(IMP_DIR,"AAP_Summary_List.xlsx"), summary_table)
+```
+
+```{r heatmap, echo=FALSE}
+df <- read_excel("AAP_Summary_List.xlsx")
+
+importance_cols <- c("XGBoostImp", "RFImp", "LinearSVMImp", "MLAGNNImp")
+
+importance_rank <- df %>%
+  select(Symbols, adj.P.Val, all_of(importance_cols)) %>%
+  pivot_longer(
+    cols = all_of(importance_cols),
+    names_to = "Model",
+    values_to = "Importance"
+  ) %>%
+  group_by(Model) %>%
+  mutate(Rank = min_rank(desc(Importance))) %>%ungroup()
+
+top_features_rank <- importance_rank %>%
+  group_by(Symbols, adj.P.Val) %>%
+  summarise(
+    mean_rank = mean(Rank, na.rm = TRUE),
+    .groups ="drop") %>%
+  arrange(mean_rank) %>%
+  slice_head(n = 103)
+
+plot_data <- importance_rank %>%
+  semi_join(top_features_rank, by = c("Symbols", "adj.P.Val")) %>%
+  left_join(top_features_rank, by = c("Symbols", "adj.P.Val")) %>%
+  mutate(
+    Symbols = fct_reorder(Symbols, mean_rank, .desc = TRUE),
+    Model = factor(Model, levels = importance_cols)
+  )
+
+p_heatmap <- ggplot(plot_data, aes(x = Model, y = Symbols, fill = Rank)) +
+  geom_tile(color = "white") +
+  geom_shadowtext(
+    aes(label = Rank),
+    size = 6,
+    colour = "black",
+    bg.colour = "white",
+    bg.r = 0.12
+  ) +
+  scale_fill_viridis_c(
+    option = "C",
+    direction = -1) +
+  labs(
+    title = "Feature-Importance Ranking across Classification Models",
+    subtitle = "All 103 genes by mean rank",
+    x = "Classification model",
+    y = "Gene",
+    fill = "Rank") +
+  theme_minimal(base_size = 16) +
+  theme(
+    plot.title = element_text(size = 22, face = "bold"),
+    plot.subtitle = element_text(size = 22),
+    axis.title.x = element_text(size = 22, face = "bold"),
+    axis.title.y = element_text(size = 22, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 22),
+    axis.text.y = element_text(size = 18),
+    legend.title = element_text(size = 22, face = "bold"),
+    legend.text = element_text(size = 22),
+    panel.grid = element_blank()
+  )
+
+p_adj <- top_features_rank %>%
+  mutate(
+    Symbols = fct_reorder(Symbols, mean_rank, .desc = TRUE),
+    adj_p_label = number(
+      adj.P.Val,
+      accuracy = 0.0001,
+      decimal.mark = ".",
+      big.mark = ""
+    ),
+    p_value_group = ifelse(adj.P.Val < 0.1, "p < 0.1", "p >= 0.1")
+  ) %>%
+  ggplot(aes(x = "Adj.P.val", y = Symbols)) +
+  geom_text(
+    aes(label = adj_p_label, color = p_value_group),
+    size = 6,
+    hjust = 0.5,
+    vjust = 0.5) +
+  scale_color_manual(
+    values = c(
+      "p < 0.1" = "red",
+      "p >= 0.1" = "black"
+    ),
+    guide = "none") +
+  scale_x_discrete(position = "top") +
+  labs(x = NULL, y = NULL) +
+  theme_void(base_size = 16) +
+  theme(
+    axis.text.x = element_text(size = 18, face = "bold"),
+    axis.text.y = element_blank(),
+    plot.margin = margin(t = 58, r = 8, b = 8, l = 8)
+  )
+
+final_plot <- p_heatmap + p_adj + plot_layout(widths = c(4, 1))
+
+ggsave(
+  filename = file.path(OUTPUT_DIR,"feature_importance_rank_heatmap.pdf"),
+  plot = final_plot,
+  width = 12,
+  height = 28,
+  units = "in",
+  device = cairo_pdf
+)
+```
