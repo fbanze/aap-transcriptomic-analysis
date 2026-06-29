@@ -19,6 +19,7 @@ from sklearn.model_selection import StratifiedShuffleSplit, StratifiedKFold
 import matplotlib.pyplot as plt
 import seaborn as sns
 import random
+import re
 
 k = 10
 n = 9
@@ -194,3 +195,104 @@ class GeneExpressionDataset(Dataset):
         x = torch.tensor(x, dtype=torch.float32).unsqueeze(1)
         y = torch.tensor(self.labels.iloc[idx], dtype=torch.long)
         return Data(x=x, edge_index=self.edge_index, edge_weight=self.edge_weight, y=y)
+
+#helper functions to gereate tables as in https://www.sciencedirect.com/science/article/pii/S0169260725004808
+def extract_mean(cell: str) -> float:
+    #split mean
+    parts = re.split(r"\s*±\s*", str(cell).strip())
+    return float(parts[0])
+
+def latex_escape(s: str) -> str:
+    return str(s).replace("_", r"\_")
+
+def get_best_indices_per_fold(df: pd.DataFrame) -> dict:
+    best = {}
+    for col in df.columns:
+        means = df[col].apply(extract_mean)
+        best[col] = means.idxmax()
+    return best
+
+def generate_table_nachos_tex(df_cv,caption,filename,label,metric,cross_scores: dict):
+    
+    if df_cv.shape[1] != k:
+        raise ValueError(f"Expected k fold columns (F0..Fk). Got {df_cv.shape[1]} columns.")
+    if set(df_cv.columns) != {f"F{i}" for i in range(k)}:
+        raise ValueError(f"Expected columns named F0..Fk. Got: {list(df_cv.columns)}")
+    if set(cross_scores.keys()) != {f"t{i}" for i in range(k)}:
+        raise ValueError(f"Expected cross_scores keys t0..tk. Got: {sorted(cross_scores.keys())}")
+
+    best_per_fold = get_best_indices_per_fold(df_cv)
+    total_cols = k + 2
+    pre_cols = ["c", "c"]
+    
+    for i in range(k):
+        if i % 2 == 0:
+            pre_cols.append("c")
+        else:
+            pre_cols.append(r">{\columncolor{foldshade}}c")
+    tab_preamble = " ".join(pre_cols)
+
+    with open(filename, "w", encoding="utf-8") as f:
+
+        f.write("\\begin{table}[ht]\n")
+        f.write("\\centering\n")
+        f.write("\\small\n")
+        f.write("\\setlength{\\tabcolsep}{4pt}\n")
+        f.write("\\renewcommand{\\arraystretch}{1.15}\n\n")
+
+        f.write("\\resizebox{\\textwidth}{!}{%\n")
+        f.write(f"    \\begin{{tabular}}{{{tab_preamble}}}\n")
+        f.write("    \\toprule\n")
+        f.write(f"    & \\multicolumn{{{k}}}{{c}}{{Fold reserved for test}} \\\\\n")
+        #f.write("    & \\multicolumn{" + str(k) + "}{c}{Fold reserved for test} \\\\\n")
+        f.write(f"    \\cmidrule(lr){{3-{total_cols}}}\n")
+        f.write("    Hyperparameter & & " + " & ".join([f"$F_{{{i}}}$" for i in range(k)]) + " \\\\\n")
+        f.write("    configuration \\\\\n")
+        f.write("    \\midrule\n\n")
+
+        # AHPO inner CV
+        n_rows = len(df_cv.index)
+        f.write(
+            f"    \\multirow{{{n_rows}}}{{*}}{{\\rotatebox[origin=c]{{90}}{{\\shortstack{{AHPO/\\\\Cross-validation}}}}}} &\n"
+        )
+
+        for r_i, (h_idx, row) in enumerate(df_cv.iterrows()):
+            if r_i > 0:
+                f.write("    & ")
+
+            f.write(f"${latex_escape(h_idx)}$ & ")
+
+            cells = []
+            for col in df_cv.columns:
+                val = row[col]
+                if best_per_fold[col] == h_idx:
+                    val = f"\\best{{{val}}}"
+                cells.append(val)
+
+            f.write(" & ".join(cells) + " \\\\\n")
+
+        f.write("    \\midrule\n")
+
+        # Best Line
+        f.write("    & Best: $h_y$ & ")
+        f.write(" & ".join([f"${latex_escape(best_per_fold[f'F{i}'])}$" for i in range(k)]))
+        f.write(" \\\\\n")
+
+        f.write("    \\midrule\n\n")
+
+        # Outer CT loop
+        f.write("    \\multirow{2}{*}{\\rotatebox[origin=c]{90}{\\shortstack{Cross-\\\\testing}}} &\n")
+        f.write("    " + metric + " & " + " & ".join([f"$t_{{{i}}}$: {cross_scores[f't{i}']:.2f}" for i in range(k)]) + " \\\\\n")
+
+        mean = float(np.mean(list(cross_scores.values())))
+        std  = float(np.std(list(cross_scores.values()), ddof=0))  # std over t0..t9
+        f.write(f"    \\multicolumn{{{total_cols}}}{{c}}{{Average and standard error {mean:.2f} $\\pm$ {std:.2f}}} \\\\\n")
+
+        f.write("    \\bottomrule\n")
+        f.write("    \\end{tabular}\n")
+        f.write("}\n\n")
+        f.write(f"\\caption{{{caption}}}\n")
+        f.write(f"\\label{{{label}}}\n")
+        f.write("\\end{table}\n")
+
+    return filename
