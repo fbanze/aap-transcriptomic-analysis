@@ -1,7 +1,7 @@
 # Installation
 ## Python Dependencies
 ```
-Python 3.14.6
+Python 3.11.14
 scanpy
 datashader
 adjustText
@@ -26,4 +26,11 @@ limma
 ggrepel
 stats
 stringr
+writexl
+readxl
+forcats
+patchwork
+tidyr
+scales
+shadowtext
 ```

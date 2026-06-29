@@ -16,6 +16,7 @@ library(forcats)
 library(patchwork)
 library(tidyr)
 library(scales)
+library(shadowtext)
 ```
 
 ```{r paths, echo=FALSE}
@@ -28,10 +29,10 @@ dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
 ```{r importance merge, echo=FALSE}
 
 summary_table <- read_excel(file.path(IMP_DIR, "AAP_List.xlsx"))
-xgboost_imp <- read.csv(file.path(IMP_DIR, "xgboostimp.csv", sep = ";"))
-linearsvm_imp <- read.csv(file.path(IMP_DIR,"linearsvmimp.csv", sep = ";"))
-rf_imp <- read.csv(file.path(IMP_DIR,"rfimp.csv", sep = ";"))
-mlagnn_imp <- read.csv(file.path(IMP_DIR,"mlagnnimp.csv", sep = ";"))
+xgboost_imp <- read.csv(file.path(IMP_DIR, "xgboostimp.csv"), sep = ";")
+linearsvm_imp <- read.csv(file.path(IMP_DIR,"linearsvmimp.csv"), sep = ";")
+rf_imp <- read.csv(file.path(IMP_DIR,"rfimp.csv"), sep = ";")
+mlagnn_imp <- read.csv(file.path(IMP_DIR,"mlagnnimp.csv"), sep = ";")
 summary_table <- summary_table %>% inner_join(xgboost_imp, by = "Symbols")
 summary_table <- summary_table %>% inner_join(rf_imp, by = "Symbols")
 summary_table <- summary_table %>% inner_join(linearsvm_imp, by = "Symbols")
@@ -41,7 +42,7 @@ write_xlsx(path = file.path(IMP_DIR,"AAP_Summary_List.xlsx"), summary_table)
 ```
 
 ```{r heatmap, echo=FALSE}
-df <- read_excel("AAP_Summary_List.xlsx")
+df <- read_excel(file.path(IMP_DIR,"AAP_Summary_List.xlsx"))
 
 importance_cols <- c("XGBoostImp", "RFImp", "LinearSVMImp", "MLAGNNImp")
 
