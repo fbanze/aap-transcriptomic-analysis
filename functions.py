@@ -126,6 +126,7 @@ def recolor_shap_waterfall():
                 elif color == default_neg_color:
                     fcc.set_color(negative_color)
 
+#Adjust to used R Version
 def removeBatchEffect(train_idx, test_idx, fold, model, outer="False"):
     result = subprocess.run([r"C:/Program Files/R/R-4.5.0/bin/Rscript.exe",
                         "removeBatchEffect.R",

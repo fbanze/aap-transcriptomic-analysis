@@ -127,7 +127,7 @@ res_age$ENSEMBL <- rownames(res_age)
 join <- dplyr::inner_join(aap_ensmbls, res, by="ENSEMBL")
 join_age <- dplyr::inner_join(aap_ensmbls, res_age, by="ENSEMBL")
 symbols_aap <- (genes %>% filter(ENSEMBL %in% join$ENSEMBL))[,c(1,2)]
-symbols_aap <- (genes %>% filter(ENSEMBL %in% join_age$ENSEMBL))[,c(1,2)]
+#symbols_aap <- (genes %>% filter(ENSEMBL %in% join_age$ENSEMBL))[,c(1,2)]
 join <- dplyr::inner_join(join, symbols_aap, by="ENSEMBL")
 join <- join %>% dplyr::select(Symbols, everything())
 join <- merge(join, genes[c("ENSEMBL", "chromosome_name")], by = 'ENSEMBL')
@@ -136,8 +136,8 @@ join <- join %>% arrange(adj.P.Val)
 #for supervised classification models
 res_spl <- topTable(fit_spl, coef = 2, number = Inf)
 res_spl$ENSEMBL <- rownames(res_spl)
-symbols_aap <- (genes %>% filter(ENSEMBL %in% join_spl$ENSEMBL))[,c(1,2)]
 join_spl <- dplyr::inner_join(aap_ensmbls, res_spl, by="ENSEMBL")
+symbols_aap <- (genes %>% filter(ENSEMBL %in% join_spl$ENSEMBL))[,c(1,2)]
 join_spl <- dplyr::inner_join(join_spl, symbols_aap, by="ENSEMBL")
 join_spl <- join_spl %>% dplyr::select(Symbols, everything())
 join_spl <- merge(join_spl, genes[c("ENSEMBL", "chromosome_name")], by = 'ENSEMBL')

@@ -7,10 +7,12 @@ datashader
 adjustText
 torch
 torch_geometric
-scikit-learn
+scikit-learn 1.8.0
 ipywidgets
 shap
 xgboost 3.2.0
+GraphSHAP-IQ (GitHub)
+
 ```
 ## R Dependencies
 ```
